@@ -1,0 +1,4 @@
+{
+  "cmake.sourceDirectory": "${workspaceFolder}/.pio/libdeps/denky32/ArduinoJson",
+  "C_Cpp.errorSquiggles": "disabled"
+}
