@@ -1,4 +1,5 @@
 {
   "cmake.sourceDirectory": "${workspaceFolder}/.pio/libdeps/denky32/ArduinoJson",
-  "C_Cpp.errorSquiggles": "disabled"
+  "C_Cpp.errorSquiggles": "disabled",
+  "workbench.colorTheme": "Infinity Dark Theme Eye Friendly Colors"
 }

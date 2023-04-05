@@ -15,6 +15,7 @@
 #else
 #include <ESP8266WiFi.h>
 #endif
+
 #include <WiFiClientSecure.h>
 
 #include <UniversalTelegramBot.h>
@@ -94,6 +95,7 @@ NTPClient timeClient(ntpUDP, "pl.pool.ntp.org");
 #define CHAT_ID "-1001980783840"
 
 WiFiClientSecure client;
+HTTPClient http;
 
 // void WiFiClientSecure::setInsecure()
 // {
@@ -107,8 +109,6 @@ WiFiClientSecure client;
 
 UniversalTelegramBot bot(BOTtoken, client);
 
-HTTPClient http;
-
 /*
  * globals
  */
@@ -121,102 +121,7 @@ String my_mac;
 int devicesFound = 0;
 long scanCount = 0;
 
-const int MAX_BUFFERS = 50;
-// declare array of strings
-#include <stdlib.h>
-// stworz zmienna oraz klasy ktore pozwola dodawac do listy ciagi znakow i sprawdzac czy juz ich nie maw tablicy. Tablica mamiec okreslony rozmiar. Napisz funkcje do sprawdzania rozmiiaru tablicy. Nappisz fukcje czyszczaca cala tablice w momencie jej przepelnienia
-// typedef struct BufferList {
-//   void** buffers;
-//   int size;
-// } BufferList;
 
-// BufferList* new_buffer_list(int size) {
-//   BufferList* buffer_list = malloc(sizeof(BufferList));
-
-//   buffer_list->buffers = malloc(size * sizeof(void*));
-//   buffer_list->size = size;
-
-//   return buffer_list;
-// }
-
-// void delete_buffer_list(BufferList* buffer_list) {
-//   free(buffer_list->buffers);
-//   free(buffer_list);
-// }
-
-// const int maxMacNumber = 200;
-// BufferList bufferListObj(maxMacNumber);
-
-// char *buffersList[MAX_BUFFERS] = {};
-
-// int getBufferListLength()
-// {
-//   int i = 0;
-//   while (buffersList[i] != NULL)
-//   {
-//     i++;
-//   }
-//   return i;
-// }
-
-// // function to cleear all buffer lists
-// void clearBufferList()
-// {
-//   for (int i = 0; i < getBufferListLength(); i++)
-//   {
-//     free(buffersList[i]);
-//     buffersList[i] = NULL;
-//   }
-// }
-
-// void addToBufferList(string buffer)
-// {
-//   if (getBufferListLength() < MAX_BUFFERS)
-//   {
-//     char *newBuffer = new char[buffer.length() + 1];
-//     strcpy(newBuffer, buffer.c_str());
-//     buffersList.push_back(newBuffer);
-//   }
-//   else
-//   {
-//     Serial.println("Buffer is full - going to upload and clear it");
-//     clearBufferList();
-//     bot.sendMessage(CHAT_ID, "Buffer is being cleared.");
-//   }
-// }
-
-// bool isInBufferList(const std::string &buffer)
-// {
-//   for (const auto &buf : buffersList)
-//   {
-//     if (buf.compare(buffer) == 0)
-//     {
-//       return true;
-//     }
-//   }
-//   return false;
-// }
-
-bool checkIfServerIsOnline()
-{
-  HTTPClient http;
-  // Your Domain name with URL path or IP address with path
-  http.begin(server, serverStatus);
-
-  // Send HTTP POST request
-  int httpResponseCode = http.GET();
-  String payload = "{}";
-  if (httpResponseCode > 0)
-  {
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
-    payload = http.getString();
-
-    if (payload.length() > 0)
-      return true;
-  }
-  return false;
-}
 
 /*
  * Given a byte array of length (n), return the ASCII hex representation
@@ -238,6 +143,8 @@ String hexToStr(uint8_t *arr, int n)
   return result;
 }
 
+
+
 int generateRandomInt(int min, int max)
 {
   // ustawienie ziarna generatora liczb pseudolosowych
@@ -256,71 +163,53 @@ String getIsoTime()
 {
   char timeStr[21] = {0}; // NOTE: change if strftime format changes
 
+  // Serial.print(F("Waiting for NTP time sync..."));
   time_t time_now = timeClient.getEpochTime();
-
-  Serial.print(F("Waiting for NTP time sync: "));
-  // while (!timeClient.update())
-  // {
-  //   timeClient.forceUpdate();
-  //   Serial.print(".");
-  // }
-  // time_t nowSecs = time(nullptr);
-  // while (nowSecs < 8 * 3600 * 2)
-  // {
-  //   delay(500);
-  //   Serial.print(F("."));
-  //   yield();
-  //   nowSecs = time(nullptr);
-  // }
-  // struct tm timeinfo;
-  // gmtime_r(&nowSecs, &timeinfo);
-  // Serial.print(F("Current time: "));
-  // Serial.print(asctime(&timeinfo));
 
   localtime_r(&time_now, &timeinfo);
 
   if (timeinfo.tm_year <= (2016 - 1900))
   {
+    // date is not valid from NTP
     return String("YYYY-MM-DDTHH:MM:SSZ");
   }
   else
   {
     strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+    Serial.print('Current time: ');
     Serial.println(timeStr);
     return String(timeStr);
   }
 }
 
-void postJsonData()
-{
-  WiFiClientSecure *client = new WiFiClientSecure;
-  client->setInsecure();
-  if (client)
-  {
-    timeClient.update();
 
-    client->setCACert(rusindev_root_ca);
-    HTTPClient https;
-    if (https.begin(*client, "https://sensor.rusin.dev/server-status"))
-    {
-      int httpCode = https.GET();
-      if (httpCode > 0)
-      {
-        Serial.printf("HTTP code: %d\n", httpCode);
-        String payload = https.getString();
-        if (payload.length() > 0)
-        {
-          Serial.println(payload);
-        }
-      }
-      else
-      {
-        Serial.println("HTTP request failed");
-      }
-    }
-    https.end();
-    delete client;
+// Function to make a POST request with JSON data
+void sendJsonData(String endpoint, String payload)
+{
+  // // Convert JSON data to String
+  // String jsonString;
+  // serializeJson(jsonData, jsonString);
+
+  // Set HTTP headers
+  
+  http.begin(endpoint);
+  http.addHeader("Content-Type", "application/json");
+
+  // Send POST request with JSON data
+  int httpCode = http.POST(payload);
+
+  // Check for successful request
+  if (httpCode != 0)
+  {
+    Serial.println("POST request successful!");
   }
+  else
+  {
+    Serial.println("Error sending POST request.");
+  }
+
+  // Free resources
+  http.end();
 }
 
 class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
@@ -368,146 +257,143 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
     char buffer[1024];
     size_t len = serializeJson(json, buffer);
 
+    // convert array char to String
+    String payloadPOST = String(buffer, len);
+
+    Serial.println();
     Serial.println(buffer);
+
+    String endpoint = "http://192.168.1.178/btscan";
+    sendJsonData(endpoint, payloadPOST);
+
     String mac = advertisedDevice.getAddress().toString().c_str();
-    // bot.sendMessage(CHAT_ID, advertisedDevice.toString().c_str());
-    bot.sendMessage(CHAT_ID, String(buffer));
 
     delay(5);
-
-    // if (!bufferListObj.isInBufferList(mac))
-    // {
-    //   bufferListObj.addToBuffer(mac);
-    // }
-
-    // postJsonData();
-    // post json data
-    // postJsonData(serverUploadEntries, rusindev_cert_pem, buffer);
-  }
+  };
 };
 
-void setup()
-{
-  Serial.begin(115200);
-  Serial.println("Scanning...");
-
-  // pinMode(ledRed, OUTPUT);
-  // pinMode(ledBlue, OUTPUT);
-
-  BLEDevice::init("");
-  pBLEScan = BLEDevice::getScan(); // create new scan
-  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-  pBLEScan->setActiveScan(true); // active scan uses more power, but get results faster
-  pBLEScan->setInterval(100);
-  pBLEScan->setWindow(99); // less or equal setInterval value
-
-  delay(3000);
-  // WiFi.mode(WIFI_AP_STA);
-  WiFi.mode(WIFI_STA);
-  // WiFi.macAddressBytes(mac);
-  // WiFi.begin(ssid, password);
-  wifiMulti.addAP("Jakie haslo?", "niepamietam");
-  wifiMulti.addAP("Retech Guest", "retech.pl");
-  wifiMulti.addAP("Oaza", "twojamatka");
-  wifiMulti.addAP("Pustynia", "1q2w3e4r5");
-
-  // while (WiFi.status() != WL_CONNECTED)
-  // {
-  //   delay(500);
-  //   Serial.print(".");
-  // }
-  // Serial.println("");
-  // Serial.println("WiFi connected");
-  // Serial.println("IP address: ");
-  // Serial.println(WiFi.localIP());
-  while (wifiMulti.run() != WL_CONNECTED)
+  void setup()
   {
-    Serial.println("WiFi not connected!");
+    Serial.begin(115200);
+    Serial.println("Scanning...");
+
+    // pinMode(ledRed, OUTPUT);
+    // pinMode(ledBlue, OUTPUT);
+
+    BLEDevice::init("");
+    pBLEScan = BLEDevice::getScan(); // create new scan
+    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+    pBLEScan->setActiveScan(true); // active scan uses more power, but get results faster
+    pBLEScan->setInterval(100);
+    pBLEScan->setWindow(99); // less or equal setInterval value
+
+    delay(3000);
+    // WiFi.mode(WIFI_AP_STA);
+    WiFi.mode(WIFI_STA);
+    // WiFi.macAddressBytes(mac);
+    // WiFi.begin(ssid, password);
+    wifiMulti.addAP("Jakie haslo?", "niepamietam");
+    wifiMulti.addAP("Retech Guest", "retech.pl");
+    wifiMulti.addAP("Oaza", "twojamatka");
+    wifiMulti.addAP("Pustynia", "1q2w3e4r5");
+
+    // while (WiFi.status() != WL_CONNECTED)
+    // {
+    //   delay(500);
+    //   Serial.print(".");
+    // }
+    // Serial.println("");
+    // Serial.println("WiFi connected");
+    // Serial.println("IP address: ");
+    // Serial.println(WiFi.localIP());
+    while (wifiMulti.run() != WL_CONNECTED)
+    {
+      Serial.println("WiFi not connected!");
+      delay(1000);
+    }
+    if (wifiMulti.run() == WL_CONNECTED)
+    {
+      Serial.println("");
+      Serial.print("WiFi connected: ");
+      Serial.println(WiFi.SSID());
+      Serial.println("IP address: ");
+      Serial.println(WiFi.localIP());
+      // WiFi.setHostname("paranoja-bluetooth");
+      Serial.print("Broadcast IP address: ");
+      Serial.println(WiFi.broadcastIP());
+      Serial.print("DNS server IP address: ");
+      Serial.println(WiFi.dnsIP());
+      Serial.println();
+    }
+    delay(4000);
+    timeClient.begin();
+    timeClient.setTimeOffset(3600);
     delay(1000);
+    timeClient.update();
+    delay(1000);
+    client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
   }
-  if (wifiMulti.run() == WL_CONNECTED)
+
+  void blinkLed(int led, int times, int interval = 100)
   {
-    Serial.println("");
-    Serial.print("WiFi connected: ");
-    Serial.println(WiFi.SSID());
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
-    // WiFi.setHostname("paranoja-bluetooth");
-    Serial.print("Broadcast IP address: ");
-    Serial.println(WiFi.broadcastIP());
-    Serial.print("DNS server IP address: ");
-    Serial.println(WiFi.dnsIP());
+    for (int i = 0; i < times; i++)
+    {
+      digitalWrite(led, !digitalRead(led));
+      delay(interval);
+    }
+  }
+
+  void deviceInfo()
+  {
+    // JSON formatted payload
+    StaticJsonDocument<512> status_json;
+    status_json["state"] = 'Active';
+    status_json["time"] = getIsoTime();
+    status_json["uptime_ms"] = millis();
+    status_json["packets"] = scanCount;
+    status_json["ssid"] = WiFi.SSID();
+    status_json["rssi"] = WiFi.RSSI();
+    status_json["ip"] = WiFi.localIP().toString();
+    status_json["hostname"] = WiFi.getHostname();
+    status_json["mac"] = WiFi.macAddress();
+
+    // status_json["version"] = GIT_VERSION;
+
+    char buffer[512];
+    serializeJson(status_json, buffer);
+
+    return;
+  }
+
+  void loop()
+  {
+
+    // if (bufferListObj.getBufferSize() >= maxMacNumber)
+    // {
+    //   bufferListObj.clearBufferList();
+    // }
+
+    // update timeserver + "/server-status";
+
+    scanTime = generateRandomInt(1, 6);
+
+    BLEScanResults foundDevices = pBLEScan->start(scanTime, false);
+    Serial.printf("[SCAN %d] Devices found: ", ++scanCount);
+    devicesFound = foundDevices.getCount();
+    Serial.println(devicesFound);
+
+    // blinkLed(33, devicesFound, 100);
+
     Serial.println();
+    Serial.printf("Scan done! Scan was %d seconds\n", scanTime);
+    pBLEScan->clearResults(); // delete results fromBLEScan buffer to release memory
+
+    int wait = 10 * generateRandomInt(10, 99);
+    Serial.printf("Restarting at %d miliseconds\n", wait);
+    delay(wait);
+
+    // Serial.printf("Server is %s", checkIfServerIsOnline() ? "running\n" : "not running\n");
+    Serial.println();
+
+    client.flush();
   }
-  delay(4000);
-  timeClient.begin();
-  timeClient.setTimeOffset(3600);
-  delay(1000);
-  timeClient.update();
-  delay(1000);
-  client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
-}
-
-void blinkLed(int led, int times, int interval = 100)
-{
-  for (int i = 0; i < times; i++)
-  {
-    digitalWrite(led, !digitalRead(led));
-    delay(interval);
-  }
-}
-
-void deviceInfo()
-{
-  // JSON formatted payload
-  StaticJsonDocument<512> status_json;
-  status_json["state"] = 'Active';
-  status_json["time"] = getIsoTime();
-  status_json["uptime_ms"] = millis();
-  status_json["packets"] = scanCount;
-  status_json["ssid"] = WiFi.SSID();
-  status_json["rssi"] = WiFi.RSSI();
-  status_json["ip"] = WiFi.localIP().toString();
-  status_json["hostname"] = WiFi.getHostname();
-  status_json["mac"] = WiFi.macAddress();
-
-  // status_json["version"] = GIT_VERSION;
-
-  char buffer[512];
-  serializeJson(status_json, buffer);
-
-  return;
-}
-
-void loop()
-{
-
-  // if (bufferListObj.getBufferSize() >= maxMacNumber)
-  // {
-  //   bufferListObj.clearBufferList();
-  // }
-
-  // update timeserver + "/server-status";
-
-  scanTime = generateRandomInt(1, 6);
-
-  BLEScanResults foundDevices = pBLEScan->start(scanTime, false);
-  Serial.printf("[SCAN %d] Devices found: ", ++scanCount);
-  devicesFound = foundDevices.getCount();
-  Serial.println(devicesFound);
-
-  // blinkLed(33, devicesFound, 100);
-
-  Serial.println();
-  Serial.printf("Scan done! Scan was %d seconds\n", scanTime);
-  pBLEScan->clearResults(); // delete results fromBLEScan buffer to release memory
-
-  int wait = 10 * generateRandomInt(10, 99);
-  Serial.printf("Restarting at %d miliseconds\n", wait);
-  delay(wait);
-
-  // Serial.printf("Server is %s", checkIfServerIsOnline() ? "running\n" : "not running\n");
-  Serial.println();
-
-  client.flush();
-}
