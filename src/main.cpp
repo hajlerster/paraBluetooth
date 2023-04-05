@@ -330,8 +330,6 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
     // Serial.printf(advertisedDevice.getAddress().toString().c_str());
     Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
 
-    bot.sendMessage(CHAT_ID, advertisedDevice.toString().c_str());
-
     // Construct a JSON-formatted string with device information
     StaticJsonDocument<1024> json;
 
@@ -371,10 +369,12 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
     size_t len = serializeJson(json, buffer);
 
     Serial.println(buffer);
-
     String mac = advertisedDevice.getAddress().toString().c_str();
-    bot.sendMessage(CHAT_ID, buffer);
-    delay(200);
+    // bot.sendMessage(CHAT_ID, advertisedDevice.toString().c_str());
+    bot.sendMessage(CHAT_ID, String(buffer));
+
+    delay(5);
+
     // if (!bufferListObj.isInBufferList(mac))
     // {
     //   bufferListObj.addToBuffer(mac);
@@ -401,7 +401,7 @@ void setup()
   pBLEScan->setInterval(100);
   pBLEScan->setWindow(99); // less or equal setInterval value
 
-  delay(10);
+  delay(3000);
   // WiFi.mode(WIFI_AP_STA);
   WiFi.mode(WIFI_STA);
   // WiFi.macAddressBytes(mac);
@@ -438,46 +438,14 @@ void setup()
     Serial.print("DNS server IP address: ");
     Serial.println(WiFi.dnsIP());
     Serial.println();
-
-    delay(4000);
   }
-
+  delay(4000);
   timeClient.begin();
   timeClient.setTimeOffset(3600);
   delay(1000);
   timeClient.update();
   delay(1000);
   client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
-
-  // if (!client.connect(server, 443))
-  //   Serial.println("Connection failed!");
-  // else
-  // {
-  //   Serial.println("Connected to server!");
-  //   // Make a HTTP request:
-  //   client.println("GET 1922.168.100.50 HTTP/1.0");
-  //   client.println("Host: www.howsmyssl.com");
-  //   client.println("Connection: close");
-  //   client.println();
-  //   while (client.connected())
-  //   {
-  //     String line = client.readStringUntil('\n');
-  //     if (line == "\r")
-  //     {
-  //       Serial.println("headers received");
-  //       break;
-  //     }
-  //   }
-  //   // if there are incoming bytes available
-  //   // from the server, read them and print them:
-  //   while (client.available())
-  //   {
-  //     char c = client.read();
-  //     Serial.write(c);
-  //   }
-
-  //   client.stop();
-  // }
 }
 
 void blinkLed(int led, int times, int interval = 100)
@@ -540,4 +508,6 @@ void loop()
 
   // Serial.printf("Server is %s", checkIfServerIsOnline() ? "running\n" : "not running\n");
   Serial.println();
+
+  client.flush();
 }
